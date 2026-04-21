@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SOC Dashboard</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background: #0b1220;
+            color: white;
+            font-family: Arial;
+            margin: 0;
+        }
+
+        .header {
+            background: #020617;
+            padding: 15px;
+            text-align: center;
+            font-size: 22px;
+            color: #38bdf8;
+        }
+
+        .container {
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .card {
+            background: #020617;
+            padding: 20px;
+            border-radius: 10px;
+            flex: 1;
+        }
+
+        button {
+            padding: 10px;
+            background: red;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        .attack { color: red; }
+        .normal { color: lightgreen; }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    🛡️ AI Cybersecurity SOC Dashboard
+</div>
+
+<div class="container">
+
+    <!-- LEFT -->
+    <div class="card">
+        <h3>🔍 Detection</h3>
+
+        <a href="/predict">
+            <button>Run Detection</button>
+        </a>
+
+        {% if prediction_text %}
+            {% if 'ALERT' in prediction_text %}
+                <h2 class="attack">{{ prediction_text }}</h2>
+            {% else %}
+                <h2 class="normal">{{ prediction_text }}</h2>
+            {% endif %}
+        {% else %}
+            <h2>Click to analyze...</h2>
+        {% endif %}
+
+        <h3>📡 Live Traffic</h3>
+        <p id="live">Waiting...</p>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="card">
+        <h3>📊 Attack Chart</h3>
+
+        <!-- Safe data passing -->
+        <div id="data"
+             data-normal="{{ normal_count or 0 }}"
+             data-attack="{{ attack_count or 0 }}">
+        </div>
+
+        <canvas id="chart"></canvas>
+
+        <h3>Stats</h3>
+        <p>Normal: {{ normal_count or 0 }}</p>
+        <p>Attacks: {{ attack_count or 0 }}</p>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const canvas = document.getElementById("chart");
+    if (!canvas) {
+        console.error("Canvas not found");
+        return;
+    }
+
+    const ctx = canvas.getContext("2d");
+
+    const dataDiv = document.getElementById("data");
+
+    let normal = parseInt(dataDiv.getAttribute("data-normal")) || 0;
+    let attacks = parseInt(dataDiv.getAttribute("data-attack")) || 0;
+
+    console.log("Chart values:", normal, attacks);
+
+    // Ensure chart is visible even if values are 0
+    if (normal === 0 && attacks === 0) {
+        normal = 1;
+        attacks = 1;
+    }
+
+    new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: ["Normal", "Attacks"],
+            datasets: [{
+                label: "Traffic",
+                data: [normal, attacks],
+                backgroundColor: ["green", "red"]
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Live traffic
+    fetch('/stream')
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("live").innerText =
+           data.prediction === "BENIGN"
+           ? "✅ Normal Traffic"
+           : "🚨 " + data.prediction + " detected!";
+   })
+   .catch(err => console.error("Stream error:", err));
+   setInterval(fetchData, 3000);
+});
+</script>
+
+</body>
+</html>
